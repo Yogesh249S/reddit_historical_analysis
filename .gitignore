@@ -1,0 +1,24 @@
+# Data — never commit raw or processed data
+data/
+silver/
+
+# Python environment
+venv/
+.env
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter artifacts
+.ipynb_checkpoints/
+
+# DuckDB temp files
+*.crswap
+*.tmp
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
