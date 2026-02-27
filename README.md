@@ -8,7 +8,7 @@
 
 A local big data pipeline built to analyse 33GB of Pushshift Reddit data. The goal was to answer real questions about online community behaviour using the same tools used in production data engineering — medallion architecture, columnar storage, distributed query execution — without needing a cloud cluster.
 
-All processing runs locally on an 8GB Windows machine via WSL.
+All processing runs locally on an 16GB RAM.
 
 ---
 
@@ -77,7 +77,7 @@ Spark UDFs serialise every row across the Java↔Python boundary twice. For VADE
 
 ## Results
 
-### 🎣 Analysis 1 — Ragebait Detector
+### Analysis 1 — Ragebait Detector
 
 **Metric:** `controversy_ratio = num_comments / score`  
 High ratio = community is arguing, not upvoting.
@@ -97,7 +97,7 @@ High ratio = community is arguing, not upvoting.
 
 ---
 
-### 🔄 Analysis 2 — Echo Chamber Score
+### Analysis 2 — Echo Chamber Score
 
 **Metric:** `corr(title_sentiment, upvote_ratio)` per subreddit  
 High absolute correlation = community rewards sentiment-aligned posts.
@@ -117,7 +117,7 @@ High absolute correlation = community rewards sentiment-aligned posts.
 
 ---
 
-### 🚫 Analysis 3 — Ban Signal Detection *(r/femaledatingstrategy)*
+### Analysis 3 — Ban Signal Detection *(r/femaledatingstrategy)*
 
 **Method:** Treat the 2021 ban as a known event. Reconstruct 4 signals monthly in the years prior. Compare against r/dating_advice as an unbanned control community.
 
@@ -138,7 +138,7 @@ High absolute correlation = community rewards sentiment-aligned posts.
 
 ---
 
-### 👤 Analysis 4 — User Crossposting & Audience Overlap
+###  Analysis 4 — User Crossposting & Audience Overlap
 
 **Method:** Self-join on author column across all subreddits. Jaccard similarity normalises for community size.
 
@@ -169,7 +169,7 @@ High absolute correlation = community rewards sentiment-aligned posts.
 
 ---
 
-### 🌊 Analysis 5 — Sentiment Contagion (worldnews → politics)
+### Analysis 5 — Sentiment Contagion (worldnews → politics)
 
 **Method:** Compute daily average sentiment per subreddit. Use `lag()` window function to shift worldnews sentiment by 1/2/3 days. Measure correlation with each target sub at each lag.
 
@@ -187,7 +187,7 @@ High absolute correlation = community rewards sentiment-aligned posts.
 
 ---
 
-### 📈 Analysis 6 — Topic Drift Over Time (TF-IDF)
+### Analysis 6 — Topic Drift Over Time (TF-IDF)
 
 **Method:** Spark MLlib TF-IDF pipeline. Each (subreddit × quarter) treated as a single document. Extracts the most distinctive vocabulary per community per time period.
 
@@ -222,7 +222,7 @@ WSL2 (Ubuntu) on Windows
 ### Prerequisites
 - Java 17 (required by Spark)
 - Python 3.10+
-- WSL2 recommended on Windows
+
 
 ```bash
 pip install duckdb pandas pyarrow vaderSentiment pyspark==3.5.1 jupyter
@@ -269,13 +269,4 @@ Notebooks 02–07 are fully independent and can be run in any order after Step 2
 
 ---
 
-## Design Decisions Worth Noting
 
-**Why not Spark for everything?**  
-Spark Python UDFs serialise every row across the JVM↔Python boundary twice per call. For VADER running row-by-row on 7M posts, that overhead dominates. pandas processes the same rows in a tight Python loop with no boundary — roughly 10–20x faster for this specific workload. Spark's strength is distributed aggregation and joins, not row-level Python NLP.
-
-**Why DuckDB for ingestion?**  
-DuckDB reads JSONL natively, streams files without loading them fully into RAM, and writes Parquet in a single SQL statement. It processed 33GB in under 35 minutes. The equivalent Spark job took 8–9 hours on the same machine due to JVM startup, shuffle overhead, and partition management on a single node.
-
-**Why medallion architecture locally?**  
-Separating Bronze (raw), Silver (enriched), and Gold (aggregated) means any analysis can be rerun or modified without reprocessing upstream data. Adding a 7th analysis notebook costs nothing — it just reads from Silver. Changing the sentiment model would only require rerunning `fast_silver_sentiment.py`.
